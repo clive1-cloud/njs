@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "seed": "npx tsx ./lib/db/seed.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -15,11 +16,13 @@
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^0.563.0",
+    "mongoose": "^9.2.0",
     "next": "16.1.6",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
