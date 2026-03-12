@@ -18,6 +18,10 @@ export const Signout = async () => {
     redirect(redirectTo.redirect)
 }
 
+export const SignInWithGoogle = async () => {
+  await signIn('google')
+}
+
 export async function registerUser(userSignUp: IUserSignUP) {
   try {
     const user = await UserSignUpSchema.parseAsync({
