@@ -4,6 +4,10 @@ export const APP_SLOGAN =
 export const APP_DESCRIPTION =
   process.env.NEXT_PUBLIC_APP_DESCRIPTION ||
   'An e-commerce platform that offers a wide range of products at competitive prices, ensuring a seamless shopping experience for all users.'
+export const APP_COPYRIGHT =
+  process.env.NEXT_PUBLIC_APP_COPYRIGHT ||
+  `Copyright © 2026 ${APP_NAME}. All rights reserved`
+
 export const PAGE_SIZE = Number(process.env.PAGE_SIZE || 9)
 
 export const FREE_SHIPPING_MIN_PRICE = Number (
