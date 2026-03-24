@@ -42,27 +42,16 @@ export const generateId = () =>
   Array.from({ length: 24 }, () => Math.floor(Math.random() *10)).join('')
 
 export const formatError = (error: any): string => {
-  if (error.name === 'ZodError') {
-    const fieldErrors = Object.keys(error.errors).map((field) => {
-      const errorMessage = error.errors[field].message
-      return `${error.errors[field].path}: ${errorMessage}` // field: errorMessage
-    })
-    return fieldErrors.join('. ')
-  } else if (error.name === 'ValidationError') {
-    const fieldErrors = Object.keys(error.errors).map((field) => {
-      const errorMessage = error.errors[field].message
-      return errorMessage
-    })
-    return fieldErrors.join('. ')
-  } else if (error.code === 11000) {
-    const duplicateField = Object.keys(error.keyValue)[0]
-    return `${duplicateField} already exists`
-  } else {
-    // return 'Something went wrong. please try again'
-    return typeof error.message === 'string'
-      ? error.message
-      : JSON.stringify(error.message)
+  // Check if it's a Zod validation error first
+  if (error.name === 'ZodError' && error.errors) {
+    return Object.keys(error.errors)
+      .map((field) => error.errors[field].message)
+      .join('. ');
   }
+
+  // If it's a standard error or a custom string message
+  const message = error.message || (typeof error === 'string' ? error : 'An unexpected error occurred');
+  return typeof message === 'object' ? JSON.stringify(message) : message;
 }
 
 export function calculateFutureDate(days: number) {
@@ -137,3 +126,6 @@ export const formatDateTime = (dateString: Date) => {
   }
 }
 
+export function formatId(id: string) {
+  return `..${id.substring(id.length - 6)}`
+}

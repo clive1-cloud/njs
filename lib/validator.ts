@@ -110,9 +110,9 @@ export const OrderInputSchema = z.object({
       (value) => value > new Date(),
       'Expected delivery date must be in the future'
     ),
-  isDelivered: z.boolean().default(false),
+  isDelivered: z.boolean().optional(),
   deliveredAt: z.date().optional(),
-  isPaid: z.boolean().default(false),
+  isPaid: z.boolean().optional(),
   paidAt: z.date().optional(),
 })
 

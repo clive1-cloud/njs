@@ -116,36 +116,40 @@ const CheckoutForm = () => {
   const [isDeliveryDateSelected, setIsDeliveryDateSelected] =
     useState<boolean>(false)
 
-  const handlePlaceOrder = async () => {
-    // TODO: place order
-    const res = await createOrder({
+ const handlePlaceOrder = async () => {
+    // 1. Bundle all your local state into a single 'cart' object
+    const cart = {
       items,
-      ShippingAddress,
-      expectedDeliveryDate: calculateFutureDate(
-        AVAILABLE_DELIVERY_DATES[deliveryDateIndex!].daysToDeliver
-      ),
+      shippingAddress: ShippingAddress,
       deliveryDateIndex,
       paymentMethod,
       itemsPrice,
       ShippingPrice,
       taxPrice,
       totalPrice,
-    })
+    };
+
+    // 2. Pass it to the server action we fixed earlier
+    const res = await createOrder(cart);
+    console.log("ORDER RESPONSE:", res)
+
+    // 3. Handle the response
     if (!res.success) {
       toast({
         description: res.message,
         variant: 'destructive',
-      })
+      });
     } else {
       toast({
         description: res.message,
-        variant: 'default',
-      })
-      clearCart()
-      router.push(`/checkout/${res.data?.orderId}`)
-    }
-    
-  }
+        variant: 'default', // standard toast for success
+      });
+      
+      clearCart(); // Empty the cart now that the order is in the database
+      
+      // Navigate to the payment page using the route from your image
+      router.push(`/order/${res.data}`)}
+  };
  const handleSelectPaymentMethod = () => {
     setIsAddressSelected(true)
     setIsPaymentMethodSelected(true)
