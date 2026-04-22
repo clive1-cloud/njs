@@ -21,8 +21,8 @@ const users: IUserInput[] = [
     emailVerified: false,
   },
   {
-    name: 'Jane',
-    email: 'jane@example.com',
+    name: 'ogume charlie',
+    email: 'ogumecharlie@gmail.com',
     password: bcrypt.hashSync('123456', 5),
     role: 'User',
     address: {

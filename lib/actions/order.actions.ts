@@ -10,6 +10,7 @@ import Order, { IOrder } from '../db/models/order.models'
 import { paypal } from '../paypal'
 import { sendPurchaseReceipt } from '@/emails'
 import { revalidatePath } from 'next/cache'
+import User from '../db/models/user.model'
 
 // CREATE ORDER
 export const createOrder = async (clientSideCart: Cart) => {
@@ -17,19 +18,37 @@ export const createOrder = async (clientSideCart: Cart) => {
     await connectToDatabase()
     const session = await auth()
     if (!session) throw new Error('User not authenticated')
-    
-    const createdOrder = await createOrderFromCart(
-      clientSideCart,
-      session.user.id!
-    )
-    
+    if (!session.user?.email) throw new Error('No user email in session')
+
+    let userId = session.user.id
+
+    if (!userId) {
+  console.log('Searching for email:', session.user.email)
+
+  // Check raw mongoose connection collections
+  const mongoose = require('mongoose')
+  const collections = await mongoose.connection.db.listCollections().toArray()
+  console.log('ALL COLLECTIONS:', collections.map((c: any) => c.name))
+
+  const allUsers = await User.find({}).select('email _id').limit(5)
+  console.log('Users in DB:', JSON.stringify(allUsers))
+
+  const dbUser = await User.findOne({ email: session.user.email }).select('_id')
+  if (!dbUser) throw new Error('User not found in database')
+  userId = dbUser._id.toString()
+}
+
+    console.log('RESOLVED USER ID:', userId)
+
+    const createdOrder = await createOrderFromCart(clientSideCart, userId)
+
     return {
       success: true,
       message: 'Order placed successfully',
-      // FIX: Return the ID string directly so router.push(/payment/${res.data}) works
-      data: { orderId: createdOrder._id.toString()},
+      data: { orderId: createdOrder._id.toString() },
     }
   } catch (error) {
+    console.error('CREATE ORDER ERROR:', error)
     return { success: false, message: formatError(error) }
   }
 }
@@ -38,21 +57,36 @@ export const createOrderFromCart = async (
   clientSideCart: Cart,
   userId: string
 ) => {
+  const calculatedCart = await calcDeliveryDateAndPrice({
+    items: clientSideCart.items,
+    ShippingAddress: clientSideCart.ShippingAddress,
+    deliveryDateIndex: clientSideCart.deliveryDateIndex,
+  })
+
   const cart = {
     ...clientSideCart,
-    ...calcDeliveryDateAndPrice({
-      items: clientSideCart.items,
-      ShippingAddress: clientSideCart.ShippingAddress,
-      deliveryDateIndex: clientSideCart.deliveryDateIndex,
-    }),
+    ...calculatedCart,
   }
+
+  console.log('ORDER TO PARSE:', JSON.stringify({
+    user: userId,
+    itemsCount: cart.items?.length,
+    shippingAddress: cart.ShippingAddress,
+    paymentMethod: cart.paymentMethod,
+    itemsPrice: cart.itemsPrice,
+    shippingPrice: cart.shippingPrice,
+    taxPrice: cart.taxPrice,
+    totalPrice: cart.totalPrice,
+    expectedDeliveryDate: cart.expectedDeliveryDate,
+  }))
+
   const order = OrderInputSchema.parse({
     user: userId,
     items: cart.items,
-    shippingAddress: cart.ShippingAddress, 
+    shippingAddress: cart.ShippingAddress,
     paymentMethod: cart.paymentMethod,
     itemsPrice: cart.itemsPrice,
-    shippingPrice: cart.ShippingPrice,
+    shippingPrice: cart.shippingPrice ?? 0,
     taxPrice: cart.taxPrice,
     totalPrice: cart.totalPrice,
     expectedDeliveryDate: cart.expectedDeliveryDate,
@@ -75,7 +109,7 @@ export async function createPayPalOrder(orderId: string) {
     if (order) {
       const paypalOrder = await paypal.createOrder(order.totalPrice)
       order.paymentResult = {
-        id: paypalOrder.id,
+        _id: paypalOrder.id,
         email_address: '',
         status: '',
         pricePaid: '0',
@@ -104,11 +138,10 @@ export async function approvePayPalOrder(
     if (!order) throw new Error('Order not found')
 
     const captureData = await paypal.capturePayment(data.orderID)
-    
-    // FIX: Added missing || operators
+
     if (
       !captureData ||
-      captureData.id !== order.paymentResult?.id ||
+      captureData.id !== order.paymentResult?._id ||
       captureData.status !== 'COMPLETED'
     ) {
       throw new Error('Error in paypal payment')
@@ -117,19 +150,17 @@ export async function approvePayPalOrder(
     order.isPaid = true
     order.paidAt = new Date()
     order.paymentResult = {
-      id: captureData.id,
+      _id: captureData.id,
       status: captureData.status,
       email_address: captureData.payer.email_address,
       pricePaid:
         captureData.purchase_units[0]?.payments?.captures[0]?.amount?.value,
     }
-    
+
     await order.save()
     await sendPurchaseReceipt({ order })
-    
-    // FIX: Added backticks for template literal
     revalidatePath(`/account/orders/${orderId}`)
-    
+
     return {
       success: true,
       message: 'Your order has been successfully paid by PayPal',
@@ -138,6 +169,7 @@ export async function approvePayPalOrder(
     return { success: false, message: formatError(err) }
   }
 }
+
 export const calcDeliveryDateAndPrice = async ({
   items,
   ShippingAddress,
@@ -167,11 +199,11 @@ export const calcDeliveryDateAndPrice = async ({
       : deliveryDate.shippingPrice
 
   const taxPrice = !ShippingAddress ? 0 : round2(itemsPrice * 0.15)
-  
+
   const totalPrice = round2(
     itemsPrice +
-    (shippingPrice ? round2(shippingPrice) : 0) +
-    (taxPrice ? round2(taxPrice) : 0)
+      (shippingPrice ? round2(shippingPrice) : 0) +
+      (taxPrice ? round2(taxPrice) : 0)
   )
 
   return {
@@ -184,7 +216,8 @@ export const calcDeliveryDateAndPrice = async ({
     shippingPrice,
     taxPrice,
     totalPrice,
-    // FIX: Generate actual Date object for the validator
-    expectedDeliveryDate: new Date(Date.now() + (deliveryDate?.daysToDeliver || 0) * 24 * 60 * 60 * 1000)
+    expectedDeliveryDate: new Date(
+      Date.now() + (deliveryDate?.daysToDeliver || 0) * 24 * 60 * 60 * 1000
+    ),
   }
 }

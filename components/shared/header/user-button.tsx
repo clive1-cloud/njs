@@ -22,15 +22,15 @@ export default async function UserButton() {
     <div className='flex gap-2 items-center'>
       <DropdownMenu>
         <DropdownMenuTrigger className='header-button' asChild>
-          <div className='flex items-center'>
-            <div className='flex flex-col text-xs text-left'>
+          <span className='flex items-center'>
+            <span className='flex flex-col text-xs text-left'>
               <span>
                 Hello {session?.user? session.user.name : 'sign in'}
               </span>
-              <span className='font-bold'>Account & Orders'</span>
-            </div>
+              <span className='font-bold'>Account & Orders</span>
+            </span>
             <ChevronDownIcon />
-          </div>
+          </span>
         </DropdownMenuTrigger>
         {session ? (
           <DropdownMenuContent className='w-56' align='end' forceMount>
@@ -46,7 +46,7 @@ export default async function UserButton() {
             </DropdownMenuLabel>
             <DropdownMenuGroup>
               <Link className='w-full' href='/account'>
-                <DropdownMenuItem>Your account'</DropdownMenuItem>
+                <DropdownMenuItem>Your account</DropdownMenuItem>
               </Link>
               <Link className='w-full' href='/account/orders'>
                 <DropdownMenuItem>Your orders</DropdownMenuItem>

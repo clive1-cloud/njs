@@ -13,6 +13,7 @@ import authConfig from './auth.config'
 declare module 'next-auth' {
   interface Session {
     user: {
+      id: string
       role: string
     } & DefaultSession['user']
   }
@@ -71,32 +72,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt: async ({ token, user, trigger, session }) => {
-      if (user) {
-        if (!user.name) {
-          await connectToDatabase()
-          await User.findByIdAndUpdate(user.id, {
-            name: user.name || user.email!.split('@')[0],
-            role: 'user',
-          })
-        }
-        token.name = user.name || user.email!.split('@')[0]
-        token.role = (user as { role: string }).role
-      }
+  jwt: async ({ token, user, trigger, session }) => {
+    if (user) {
+      token.id = user.id  // works for credentials login
+      token.name = user.name || user.email!.split('@')[0]
+      token.role = (user as { role: string }).role
 
-      if (session?.user?.name && trigger === 'update') {
-        token.name = session.user.name
+      if (!user.name) {
+        await connectToDatabase()
+        await User.findByIdAndUpdate(user.id, {
+          name: user.name || user.email!.split('@')[0],
+          role: 'user',
+        })
       }
-      return token
-    },
-    session: async ({ session, user, trigger, token }) => {
-      session.user.id = token.sub as string
-      session.user.role = token.role as string
-      session.user.name = token.name
-      if (trigger === 'update') {
-        session.user.name = user.name
+    }
+
+    // FIX: If id still missing (Google OAuth), look up by email
+    if (!token.id && token.email) {
+      await connectToDatabase()
+      const dbUser = await User.findOne({ email: token.email })
+      if (dbUser) {
+        token.id = dbUser._id.toString()
+        token.role = dbUser.role
       }
-      return session
-    },
+    }
+
+    if (session?.user?.name && trigger === 'update') {
+      token.name = session.user.name
+    }
+    return token
   },
+
+  session: async ({ session, user, trigger, token }) => {
+    session.user.id = token.id as string  // ← token.id not token.sub
+    session.user.role = token.role as string
+    session.user.name = token.name
+    if (trigger === 'update') {
+      session.user.name = user.name
+    }
+    return session
+  },
+},
+
+
 })

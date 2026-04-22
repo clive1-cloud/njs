@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z, ZodString } from 'zod'
 import { formatNumberWithDecimal } from './utils'
 
 const MongoId = z
@@ -83,6 +83,7 @@ export const OrderInputSchema = z.object({
   user: z.union([
     MongoId,
     z.object({
+      _id: z.string(),
       name: z.string(),
       email: z.string().email(),
     }),
@@ -94,7 +95,7 @@ export const OrderInputSchema = z.object({
   paymentMethod: z.string().min(1, 'Payment method is required'),
   paymentResult: z
     .object({
-      id: z.string(),
+      _id: z.string(),
       status: z.string(),
       email_address: z.string(),
       pricePaid: z.string(),

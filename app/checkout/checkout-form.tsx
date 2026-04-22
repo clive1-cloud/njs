@@ -94,6 +94,7 @@ const CheckoutForm = () => {
     resolver: zodResolver(ShippingAddressSchema),
     defaultValues: ShippingAddress || shippingAddressDefaultValues,
   })
+
   const onSubmitShippingAddress: SubmitHandler<ShippingAddress> = (values) => {
     setShippingAddress(values)
     setIsAddressSelected(true)
@@ -103,7 +104,7 @@ const CheckoutForm = () => {
     if (!isMounted || !ShippingAddress) return
     shippingAddressForm.setValue('fullName', ShippingAddress.fullName)
     shippingAddressForm.setValue('street', ShippingAddress.street)
-    shippingAddressForm.setValue('city',ShippingAddress.city)
+    shippingAddressForm.setValue('city', ShippingAddress.city)
     shippingAddressForm.setValue('country', ShippingAddress.country)
     shippingAddressForm.setValue('postalCode', ShippingAddress.postalCode)
     shippingAddressForm.setValue('province', ShippingAddress.province)
@@ -111,52 +112,56 @@ const CheckoutForm = () => {
   }, [items, isMounted, router, ShippingAddress, shippingAddressForm])
 
   const [isAddressSelected, setIsAddressSelected] = useState<boolean>(false)
-  const [isPaymentMethodSelected, setIsPaymentMethodSelected] =
-    useState<boolean>(false)
-  const [isDeliveryDateSelected, setIsDeliveryDateSelected] =
-    useState<boolean>(false)
+  const [isPaymentMethodSelected, setIsPaymentMethodSelected] = useState<boolean>(false)
+  const [isDeliveryDateSelected, setIsDeliveryDateSelected] = useState<boolean>(false)
+  // FIX 1: Loading state to prevent multiple order submissions
+  const [isPlacingOrder, setIsPlacingOrder] = useState<boolean>(false)
 
- const handlePlaceOrder = async () => {
-    // 1. Bundle all your local state into a single 'cart' object
-    const cart = {
-      items,
-      shippingAddress: ShippingAddress,
-      deliveryDateIndex,
-      paymentMethod,
-      itemsPrice,
-      ShippingPrice,
-      taxPrice,
-      totalPrice,
-    };
+  // FIX 2: Correct handlePlaceOrder with loading guard, correct key casing, and proper navigation
+  const handlePlaceOrder = async () => {
+    if (isPlacingOrder) return // prevent double-clicks
 
-    // 2. Pass it to the server action we fixed earlier
-    const res = await createOrder(cart);
-    console.log("ORDER RESPONSE:", res)
+    if (!ShippingAddress) {
+      toast({ description: 'Please enter a shipping address', variant: 'destructive' })
+      return
+    }
 
-    // 3. Handle the response
-    if (!res.success) {
-      toast({
-        description: res.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        description: res.message,
-        variant: 'default', // standard toast for success
-      });
-      
-      clearCart(); // Empty the cart now that the order is in the database
-      
-      // Navigate to the payment page using the route from your image
-      router.push(`/order/${res.data}`)}
-  };
- const handleSelectPaymentMethod = () => {
+    setIsPlacingOrder(true)
+
+    try {
+      const res = await createOrder({
+        items,
+        ShippingAddress,        // FIX 3: capital S matches Cart type
+        deliveryDateIndex,
+        paymentMethod,
+        itemsPrice,
+        ShippingPrice,
+        taxPrice,
+        totalPrice,
+      })
+
+      if (!res.success) {
+        toast({ description: res.message, variant: 'destructive' })
+      } else {
+        toast({ description: res.message })
+        clearCart()
+        // FIX 4: use res.data.orderId (matches what createOrder returns)
+        router.push(`/checkout/${res.data?.orderId}`)
+      }
+    } finally {
+      setIsPlacingOrder(false)
+    }
+  }
+
+  const handleSelectPaymentMethod = () => {
     setIsAddressSelected(true)
     setIsPaymentMethodSelected(true)
   }
+
   const handleSelectShippingAddress = () => {
     shippingAddressForm.handleSubmit(onSubmitShippingAddress)()
   }
+
   const CheckoutSummary = () => (
     <Card>
       <CardContent className='p-4'>
@@ -175,14 +180,13 @@ const CheckoutForm = () => {
           </div>
         )}
         {isAddressSelected && !isPaymentMethodSelected && (
-          <div className=' mb-4'>
+          <div className='mb-4'>
             <Button
               className='rounded-full w-full'
               onClick={handleSelectPaymentMethod}
             >
               Use this payment method
             </Button>
-
             <p className='text-xs text-center py-2'>
               Choose a payment method to continue checking out. You&apos;ll
               still have a chance to review and edit your order before it&apos;s
@@ -192,8 +196,13 @@ const CheckoutForm = () => {
         )}
         {isPaymentMethodSelected && isAddressSelected && (
           <div>
-            <Button onClick={handlePlaceOrder} className='rounded-full w-full'>
-              Place Your Order
+            {/* FIX 5: disabled + loading text on button */}
+            <Button
+              onClick={handlePlaceOrder}
+              disabled={isPlacingOrder}
+              className='rounded-full w-full'
+            >
+              {isPlacingOrder ? 'Placing Order...' : 'Place Your Order'}
             </Button>
             <p className='text-xs text-center py-2'>
               By placing your order, you agree to {APP_NAME}&apos;s{' '}
@@ -225,7 +234,7 @@ const CheckoutForm = () => {
               </span>
             </div>
             <div className='flex justify-between'>
-              <span> Tax:</span>
+              <span>Tax:</span>
               <span>
                 {taxPrice === undefined ? (
                   '--'
@@ -234,8 +243,8 @@ const CheckoutForm = () => {
                 )}
               </span>
             </div>
-            <div className='flex justify-between  pt-4 font-bold text-lg'>
-              <span> Order Total:</span>
+            <div className='flex justify-between pt-4 font-bold text-lg'>
+              <span>Order Total:</span>
               <span>
                 <ProductPrice price={totalPrice} plain />
               </span>
@@ -253,12 +262,12 @@ const CheckoutForm = () => {
           {/* shipping address */}
           <div>
             {isAddressSelected && ShippingAddress ? (
-              <div className='grid grid-cols-1 md:grid-cols-12    my-3  pb-3'>
-                <div className='col-span-5 flex text-lg font-bold '>
+              <div className='grid grid-cols-1 md:grid-cols-12 my-3 pb-3'>
+                <div className='col-span-5 flex text-lg font-bold'>
                   <span className='w-8'>1 </span>
                   <span>Shipping address</span>
                 </div>
-                <div className='col-span-5 '>
+                <div className='col-span-5'>
                   <p>
                     {ShippingAddress.fullName} <br />
                     {ShippingAddress.street} <br />
@@ -266,12 +275,13 @@ const CheckoutForm = () => {
                   </p>
                 </div>
                 <div className='col-span-2'>
+                  {/* FIX 6: Change button correctly resets all 3 states to false */}
                   <Button
                     variant={'outline'}
                     onClick={() => {
                       setIsAddressSelected(false)
-                      setIsPaymentMethodSelected(true)
-                      setIsDeliveryDateSelected(true)
+                      setIsPaymentMethodSelected(false)
+                      setIsDeliveryDateSelected(false)
                     }}
                   >
                     Change
@@ -287,17 +297,12 @@ const CheckoutForm = () => {
                 <Form {...shippingAddressForm}>
                   <form
                     method='post'
-                    onSubmit={shippingAddressForm.handleSubmit(
-                      onSubmitShippingAddress
-                    )}
+                    onSubmit={shippingAddressForm.handleSubmit(onSubmitShippingAddress)}
                     className='space-y-4'
                   >
                     <Card className='md:ml-8 my-4'>
                       <CardContent className='p-4 space-y-2'>
-                        <div className='text-lg font-bold mb-2'>
-                          Your address
-                        </div>
-
+                        <div className='text-lg font-bold mb-2'>Your address</div>
                         <div className='flex flex-col gap-5 md:flex-row'>
                           <FormField
                             control={shippingAddressForm.control}
@@ -306,10 +311,7 @@ const CheckoutForm = () => {
                               <FormItem className='w-full'>
                                 <FormLabel>Full Name</FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder='Enter full name'
-                                    {...field}
-                                  />
+                                  <Input placeholder='Enter full name' {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -324,10 +326,7 @@ const CheckoutForm = () => {
                               <FormItem className='w-full'>
                                 <FormLabel>Address</FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder='Enter address'
-                                    {...field}
-                                  />
+                                  <Input placeholder='Enter address' {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -355,10 +354,7 @@ const CheckoutForm = () => {
                               <FormItem className='w-full'>
                                 <FormLabel>Province</FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder='Enter province'
-                                    {...field}
-                                  />
+                                  <Input placeholder='Enter province' {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -371,10 +367,7 @@ const CheckoutForm = () => {
                               <FormItem className='w-full'>
                                 <FormLabel>Country</FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder='Enter country'
-                                    {...field}
-                                  />
+                                  <Input placeholder='Enter country' {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -389,10 +382,7 @@ const CheckoutForm = () => {
                               <FormItem className='w-full'>
                                 <FormLabel>Postal Code</FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder='Enter postal code'
-                                    {...field}
-                                  />
+                                  <Input placeholder='Enter postal code' {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -405,10 +395,7 @@ const CheckoutForm = () => {
                               <FormItem className='w-full'>
                                 <FormLabel>Phone number</FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder='Enter phone number'
-                                    {...field}
-                                  />
+                                  <Input placeholder='Enter phone number' {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -416,11 +403,8 @@ const CheckoutForm = () => {
                           />
                         </div>
                       </CardContent>
-                      <CardFooter className='  p-4'>
-                        <Button
-                          type='submit'
-                          className='rounded-full font-bold'
-                        >
+                      <CardFooter className='p-4'>
+                        <Button type='submit' className='rounded-full font-bold'>
                           Ship to this address
                         </Button>
                       </CardFooter>
@@ -430,15 +414,16 @@ const CheckoutForm = () => {
               </>
             )}
           </div>
+
           {/* payment method */}
           <div className='border-y'>
             {isPaymentMethodSelected && paymentMethod ? (
-              <div className='grid  grid-cols-1 md:grid-cols-12  my-3 pb-3'>
-                <div className='flex text-lg font-bold  col-span-5'>
+              <div className='grid grid-cols-1 md:grid-cols-12 my-3 pb-3'>
+                <div className='flex text-lg font-bold col-span-5'>
                   <span className='w-8'>2 </span>
                   <span>Payment Method</span>
                 </div>
-                <div className='col-span-5 '>
+                <div className='col-span-5'>
                   <p>{paymentMethod}</p>
                 </div>
                 <div className='col-span-2'>
@@ -446,7 +431,8 @@ const CheckoutForm = () => {
                     variant='outline'
                     onClick={() => {
                       setIsPaymentMethodSelected(false)
-                      if (paymentMethod) setIsDeliveryDateSelected(true)
+                      // FIX 7: don't set delivery date selected here
+                      setIsDeliveryDateSelected(false)
                     }}
                   >
                     Change
@@ -466,11 +452,8 @@ const CheckoutForm = () => {
                       onValueChange={(value) => setPaymentMethod(value)}
                     >
                       {AVAILABLE_PAYMENT_METHODS.map((pm) => (
-                        <div key={pm.name} className='flex items-center py-1 '>
-                          <RadioGroupItem
-                            value={pm.name}
-                            id={`payment-${pm.name}`}
-                          />
+                        <div key={pm.name} className='flex items-center py-1'>
+                          <RadioGroupItem value={pm.name} id={`payment-${pm.name}`} />
                           <Label
                             className='font-bold pl-2 cursor-pointer'
                             htmlFor={`payment-${pm.name}`}
@@ -498,11 +481,12 @@ const CheckoutForm = () => {
               </div>
             )}
           </div>
+
           {/* items and delivery date */}
           <div>
             {isDeliveryDateSelected && deliveryDateIndex != undefined ? (
-              <div className='grid  grid-cols-1 md:grid-cols-12  my-3 pb-3'>
-                <div className='flex text-lg font-bold  col-span-5'>
+              <div className='grid grid-cols-1 md:grid-cols-12 my-3 pb-3'>
+                <div className='flex text-lg font-bold col-span-5'>
                   <span className='w-8'>3 </span>
                   <span>Items and shipping</span>
                 </div>
@@ -512,8 +496,7 @@ const CheckoutForm = () => {
                     {
                       formatDateTime(
                         calculateFutureDate(
-                          AVAILABLE_DELIVERY_DATES[deliveryDateIndex]
-                            .daysToDeliver
+                          AVAILABLE_DELIVERY_DATES[deliveryDateIndex].daysToDeliver
                         )
                       ).dateOnly
                     }
@@ -540,7 +523,7 @@ const CheckoutForm = () => {
               </div>
             ) : isPaymentMethodSelected && isAddressSelected ? (
               <>
-                <div className='flex text-primary  text-lg font-bold my-2'>
+                <div className='flex text-primary text-lg font-bold my-2'>
                   <span className='w-8'>3 </span>
                   <span>Review items and shipping</span>
                 </div>
@@ -552,14 +535,14 @@ const CheckoutForm = () => {
                         {
                           formatDateTime(
                             calculateFutureDate(
-                              AVAILABLE_DELIVERY_DATES[deliveryDateIndex!]
-                                .daysToDeliver
+                              // FIX 8: safe fallback for deliveryDateIndex
+                              AVAILABLE_DELIVERY_DATES[deliveryDateIndex ?? 0].daysToDeliver
                             )
                           ).dateOnly
                         }
                       </span>{' '}
-                      If you order in the next {timeUntilMidnight().hours} hours
-                      and {timeUntilMidnight().minutes} minutes.
+                      If you order in the next {timeUntilMidnight().hours} hours and{' '}
+                      {timeUntilMidnight().minutes} minutes.
                     </p>
                     <div className='grid md:grid-cols-2 gap-6'>
                       <div>
@@ -571,12 +554,9 @@ const CheckoutForm = () => {
                                 alt={item.name}
                                 fill
                                 sizes='20vw'
-                                style={{
-                                  objectFit: 'contain',
-                                }}
+                                style={{ objectFit: 'contain' }}
                               />
                             </div>
-
                             <div className='flex-1'>
                               <p className='font-semibold'>
                                 {item.name}, {item.color}, {item.size}
@@ -584,7 +564,6 @@ const CheckoutForm = () => {
                               <p className='font-bold'>
                                 <ProductPrice price={item.price} plain />
                               </p>
-
                               <Select
                                 value={item.quantity.toString()}
                                 onValueChange={(value) => {
@@ -593,14 +572,10 @@ const CheckoutForm = () => {
                                 }}
                               >
                                 <SelectTrigger className='w-24'>
-                                  <SelectValue>
-                                    Qty: {item.quantity}
-                                  </SelectValue>
+                                  <SelectValue>Qty: {item.quantity}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent position='popper'>
-                                  {Array.from({
-                                    length: item.countInStock,
-                                  }).map((_, i) => (
+                                  {Array.from({ length: item.countInStock }).map((_, i) => (
                                     <SelectItem key={i + 1} value={`${i + 1}`}>
                                       {i + 1}
                                     </SelectItem>
@@ -615,20 +590,17 @@ const CheckoutForm = () => {
                         ))}
                       </div>
                       <div>
-                        <div className=' font-bold'>
-                          <p className='mb-2'> Choose a shipping speed:</p>
-
+                        <div className='font-bold'>
+                          <p className='mb-2'>Choose a shipping speed:</p>
                           <ul>
                             <RadioGroup
-                              value={
-                                AVAILABLE_DELIVERY_DATES[deliveryDateIndex!]
-                                  .name
-                              }
+                              // FIX 9: safe fallback for deliveryDateIndex
+                              value={AVAILABLE_DELIVERY_DATES[deliveryDateIndex ?? 0].name}
                               onValueChange={(value) =>
                                 setDeliveryDateIndex(
                                   AVAILABLE_DELIVERY_DATES.findIndex(
-                                    (address) => address.name === value
-                                  )!
+                                    (d) => d.name === value
+                                  )
                                 )
                               }
                             >
@@ -656,10 +628,7 @@ const CheckoutForm = () => {
                                         : dd.shippingPrice) === 0 ? (
                                         'FREE Shipping'
                                       ) : (
-                                        <ProductPrice
-                                          price={dd.shippingPrice}
-                                          plain
-                                        />
+                                        <ProductPrice price={dd.shippingPrice} plain />
                                       )}
                                     </div>
                                   </Label>
@@ -680,31 +649,30 @@ const CheckoutForm = () => {
               </div>
             )}
           </div>
+
           {isPaymentMethodSelected && isAddressSelected && (
             <div className='mt-6'>
               <div className='block md:hidden'>
                 <CheckoutSummary />
               </div>
-
-              <Card className='hidden md:block '>
+              <Card className='hidden md:block'>
                 <CardContent className='p-4 flex flex-col md:flex-row justify-between items-center gap-3'>
-                  <Button onClick={handlePlaceOrder} className='rounded-full'>
-                    Place Your Order
+                  {/* FIX 10: disabled + loading text on bottom Place Order button too */}
+                  <Button
+                    onClick={handlePlaceOrder}
+                    disabled={isPlacingOrder}
+                    className='rounded-full'
+                  >
+                    {isPlacingOrder ? 'Placing Order...' : 'Place Your Order'}
                   </Button>
                   <div className='flex-1'>
                     <p className='font-bold text-lg'>
                       Order Total: <ProductPrice price={totalPrice} plain />
                     </p>
                     <p className='text-xs'>
-                      {' '}
                       By placing your order, you agree to {APP_NAME}&apos;s{' '}
-                      <Link href='/page/privacy-policy'>privacy notice</Link>{' '}
-                      and
-                      <Link href='/page/conditions-of-use'>
-                        {' '}
-                        conditions of use
-                      </Link>
-                      .
+                      <Link href='/page/privacy-policy'>privacy notice</Link> and
+                      <Link href='/page/conditions-of-use'> conditions of use</Link>.
                     </p>
                   </div>
                 </CardContent>
@@ -720,4 +688,5 @@ const CheckoutForm = () => {
     </main>
   )
 }
+
 export default CheckoutForm

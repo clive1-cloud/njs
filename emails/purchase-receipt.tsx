@@ -31,11 +31,11 @@ PurchaseReceiptEmail.PreviewProps = {
     taxPrice: 0,
     shippingPrice: 0,
     user: {
-      name: 'John Doe',
-      email: 'john.doe@example.com',
+      name: 'ogume charlie',
+      email: 'ogumecharlie@gmail.com',
     },
     shippingAddress: {
-      fullName: 'John Doe',
+      fullName: 'ogume charlie',
       street: '123 Main St',
       city: 'New York',
       postalCode: '12345',
