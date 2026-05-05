@@ -17,6 +17,9 @@ import CheckoutFooter from '../checkout-footer'
 import { redirect, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import ProductPrice from '@/components/shared/product/product-price'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements } from '@stripe/react-stripe-js'
+import StripeForm from './stripe-form'
 
 // FIX 1: Moved PrintLoadingState outside the main component so it doesn't
 // get recreated on every render
@@ -30,10 +33,12 @@ function PrintLoadingState() {
 export default function OrderPaymentForm({
   order,
   paypalClientId,
+  clientSecret,
 }: {
   order: IOrder
   paypalClientId: string
   isAdmin: boolean
+  clientSecret: string | null
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -81,74 +86,93 @@ export default function OrderPaymentForm({
   }
   // FIX 2: PayPal rendered ONCE here at the top level, outside CheckoutSummary
   // This prevents double-mounting (mobile + desktop) which caused the flicker
- const PayPalSection = () => (
-  <>
-    {!isPaid && paymentMethod === 'PayPal' && (
-      <PayPalScriptProvider options={{ 
-        clientId: paypalClientId,
-        currency: 'USD'  // ← add this
-      }}>
-        <PrintLoadingState />
-        <PayPalButtons
-          createOrder={handleCreatePayPalOrder}
-          onApprove={handleApprovePayPalOrder}
-        />
-      </PayPalScriptProvider>
-    )}
-    {!isPaid && paymentMethod === 'Cash On Delivery' && (
-      <Button
-        className='w-full rounded-full'
-        onClick={() => router.push(`/account/orders/${order._id}`)}
-      >
-        View Order
-      </Button>
-    )}
-  </>
-)
-  // FIX 3: CheckoutSummary no longer contains PayPal — just the price summary
-  const CheckoutSummary = () => (
+const CheckoutSummary = () => (
     <Card>
       <CardContent className='p-4'>
-        <div className='text-lg font-bold'>Order Summary</div>
-        <div className='space-y-2'>
-          <div className='flex justify-between'>
-            <span>Items:</span>
-            <span><ProductPrice price={itemsPrice} plain /></span>
-          </div>
-          <div className='flex justify-between'>
-            <span>Shipping & Handling:</span>
-            <span>
-              {shippingPrice === undefined ? (
-                '--'
-              ) : shippingPrice === 0 ? (
-                'FREE'
-              ) : (
-                <ProductPrice price={shippingPrice} plain />
-              )}
-            </span>
-          </div>
-          <div className='flex justify-between'>
-            <span>Tax:</span>
-            <span>
-              {taxPrice === undefined ? (
-                '--'
-              ) : (
-                <ProductPrice price={taxPrice} plain />
-              )}
-            </span>
-          </div>
-          <div className='flex justify-between pt-1 font-bold text-lg'>
-            <span>Order Total:</span>
-            <span><ProductPrice price={totalPrice} plain /></span>
-          </div>
-          {/* FIX 4: PayPal only shown on desktop sidebar */}
-          <div className='hidden md:block'>
-            <PayPalSection />
+        <div>
+          <div className='text-lg font-bold'>Order Summary</div>
+          <div className='space-y-2'>
+            <div className='flex justify-between'>
+              <span>Items:</span>
+              <span>
+                {' '}
+                <ProductPrice price={itemsPrice} plain />
+              </span>
+            </div>
+            <div className='flex justify-between'>
+              <span>Shipping & Handling:</span>
+              <span>
+                {shippingPrice === undefined ? (
+                  '--'
+                ) : shippingPrice === 0 ? (
+                  'FREE'
+                ) : (
+                  <ProductPrice price={shippingPrice} plain />
+                )}
+              </span>
+            </div>
+            <div className='flex justify-between'>
+              <span> Tax:</span>
+              <span>
+                {taxPrice === undefined ? (
+                  '--'
+                ) : (
+                  <ProductPrice price={taxPrice} plain />
+                )}
+              </span>
+            </div>
+            <div className='flex justify-between  pt-1 font-bold text-lg'>
+              <span> Order Total:</span>
+              <span>
+                {' '}
+                <ProductPrice price={totalPrice} plain />
+              </span>
+            </div>
+
+            {!isPaid && paymentMethod === 'PayPal' && (
+              <div>
+                <PayPalScriptProvider options={{ clientId: paypalClientId }}>
+                  <PrintLoadingState />
+                  <PayPalButtons
+                    createOrder={handleCreatePayPalOrder}
+                    onApprove={handleApprovePayPalOrder}
+                  />
+                </PayPalScriptProvider>
+              </div>
+            )}
+            {!isPaid && paymentMethod === 'Stripe' && clientSecret && (
+              <Elements
+                options={{
+                  clientSecret,
+                }}
+                stripe={stripePromise}
+              >
+                <StripeForm
+                  priceInCents={Math.round(order.totalPrice * 100)}
+                  orderId={order._id}
+                />
+              </Elements>
+            )}
+
+            {!isPaid && paymentMethod === 'Cash On Delivery' && (
+              <Button
+                className='w-full rounded-full'
+                onClick={() => router.push(`/account/orders/${order._id}`)}
+              >
+                View Order
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
     </Card>
   )
+
+  const stripePromise = loadStripe(
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string
+  )
+
+
 
   return (
     <main className='max-w-6xl mx-auto'>
@@ -194,9 +218,6 @@ export default function OrderPaymentForm({
           {/* FIX 5: Mobile — show summary + PayPal once here only */}
           <div className='block md:hidden'>
             <CheckoutSummary />
-            <div className='mt-4'>
-              <PayPalSection />
-            </div>
           </div>
 
           <CheckoutFooter />
