@@ -359,7 +359,7 @@ const products: IProductInput[] = [
     ),
     category: 'T-Shirts',
     brand: 'Jerzees',
-    images: ['/images/T-Shirts09.jpg', '/images/T-Shirts10.jpg'],
+    images: ['/images/t-Shirts09.jpg', '/images/t-Shirts10.jpg'],
     tags: ['todays-deal'],
     isPublished: true,
     price: 26.95,
@@ -617,7 +617,7 @@ const products: IProductInput[] = [
   {
     name: "Seiko Men's Analogue Watch with Black Dial",
     slug: toSlug("Seiko Men's Analogue Watch with Black Dial"),
-    category: 'Wrist Watches',
+    category: 'Wrist-Watches',
     brand: 'Seiko',
     images: ['/images/wrist-watches.jpg', '/images/wrist-watches02.jpg'],
     tags: ['new-arrival'],
@@ -647,7 +647,7 @@ const products: IProductInput[] = [
     slug: toSlug(
       'SEIKO 5 Sport SRPJ83 Beige Dial Nylon Automatic Watch, Beige, Automatic Watch',
     ),
-    category: 'Wrist Watches',
+    category: 'Wrist-Watches',
     brand: 'Seiko',
     images: ['/images/wrist-watches03.jpg', '/images/wrist-watches04.jpg'],
     tags: ['featured'],
@@ -677,7 +677,7 @@ const products: IProductInput[] = [
     slug: toSlug(
       "Casio Men's Heavy Duty Analog Quartz Stainless Steel Strap, Silver, 42 Casual Watch",
     ),
-    category: 'Wrist Watches',
+    category: 'Wrist-Watches',
     brand: 'Casio',
     images: ['/images/wrist-watches06.jpg', '/images/wrist-watches05.jpg'],
     tags: ['best-seller'],
@@ -707,7 +707,7 @@ const products: IProductInput[] = [
     slug: toSlug(
       'Casio Classic Silver-Tone Stainless Steel Band Date Indicator Watch',
     ),
-    category: 'Wrist Watches',
+    category: 'Wrist-Watches',
     brand: 'Casio',
     images: ['/images/wrist-watches03.jpg', '/images/wrist-watches04.jpg'],
     tags: ['todays-deal'],
@@ -735,7 +735,7 @@ const products: IProductInput[] = [
   {
     name: "Fossil Men's Grant Stainless Steel Quartz Chronograph Watch",
     slug: toSlug("Fossil Men's Grant Stainless Steel Quartz Chronograph Watch"),
-    category: 'Wrist Watches',
+    category: 'Wrist-Watches',
     brand: 'Fossil',
     images: ['/images/wrist-watches07.jpg', '/images/wrist-watches08.jpg'],
     tags: ['new-arrival', 'featured'],
@@ -763,7 +763,7 @@ const products: IProductInput[] = [
   {
     name: "Fossil Men's Machine Stainless Steel Quartz Watch",
     slug: toSlug("Fossil Men's Machine Stainless Steel Quartz Watch"),
-    category: 'Wrist Watches',
+    category: 'Wrist-Watches',
     brand: 'Fossil',
     images: ['/images/wrist-watches09.jpg', '/images/wrist-watches10.jpg'],
     tags: ['best-seller', 'todays-deal'],
@@ -978,7 +978,7 @@ const data: Data = {
     },
     {
       name: 'New Arrivals',
-      href: '/search?tag=new-arrivals',
+      href: '/search?tag=new-arrival',
     },
     {
       name: 'Featured Products',
