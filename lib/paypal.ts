@@ -1,4 +1,4 @@
-const base = process.env.PAYPAL_API_URL || 'https://sandbox.paypal.com'
+const base = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com'
 
 export const paypal = {
   createOrder: async function createOrder(price: number) {
@@ -15,7 +15,7 @@ export const paypal = {
         purchase_units: [
           {
             amount: {
-              currency_code: 'NGN',
+              currency_code: 'USD',
               value: price,
             },
           },

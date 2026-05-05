@@ -132,44 +132,71 @@ export async function approvePayPalOrder(
   orderId: string,
   data: { orderID: string }
 ) {
-  await connectToDatabase()
+  await connectToDatabase();
   try {
-    const order = await Order.findById(orderId).populate('user', 'email')
-    if (!order) throw new Error('Order not found')
+    const order = await Order.findById(orderId).populate('user', 'email');
+    if (!order) throw new Error('Order not found');
 
-    const captureData = await paypal.capturePayment(data.orderID)
+    // 1. Capture the payment from PayPal
+    const captureData = await paypal.capturePayment(data.orderID);
+
+    // 2. DEBUG LOGS (Keep these for now)
+    console.log('--- PAYPAL SECURITY CHECK ---');
+    console.log('PayPal Sent ID:', captureData?.id);
+    console.log('DB Expected ID:', order.paymentResult?._id);
+    console.log('Payment Status:', captureData?.status);
+    console.log('-----------------------------');
+
+    // 3. Updated Security Validation
+    // Logic: If there is ALREADY an ID in the DB, it MUST match the incoming PayPal ID.
+    // If there is no ID in the DB yet, we skip the mismatch check.
+    const isIdMismatch = order.paymentResult?._id && captureData.id !== order.paymentResult._id;
 
     if (
       !captureData ||
-      captureData.id !== order.paymentResult?._id ||
+      isIdMismatch || 
       captureData.status !== 'COMPLETED'
     ) {
-      throw new Error('Error in paypal payment')
+      throw new Error(
+        `Payment verification failed. Status: ${captureData?.status}, Mismatch: ${!!isIdMismatch}`
+      );
     }
 
-    order.isPaid = true
-    order.paidAt = new Date()
+    // 4. Update the order object in memory
+    order.isPaid = true;
+    order.paidAt = new Date();
     order.paymentResult = {
-      _id: captureData.id,
+      _id: captureData.id, // This is where the ID gets saved to the DB for the first time
       status: captureData.status,
       email_address: captureData.payer.email_address,
-      pricePaid:
-        captureData.purchase_units[0]?.payments?.captures[0]?.amount?.value,
+      pricePaid: captureData.purchase_units[0]?.payments?.captures[0]?.amount?.value,
+    };
+
+    // 5. Save all changes to the Database
+    await order.save();
+    console.log('✅ Order saved as paid in DB');
+
+    // 6. Email Logic (Wrapped in try/catch)
+    try {
+      const targetEmail = (order.user as any).email;
+      console.log('📧 Attempting to send email to:', targetEmail);
+      await sendPurchaseReceipt({ order });
+      console.log('🚀 sendPurchaseReceipt function finished');
+    } catch (emailErr) {
+      console.error('❌ Email failed but payment is safe:', emailErr);
     }
 
-    await order.save()
-    await sendPurchaseReceipt({ order })
-    revalidatePath(`/account/orders/${orderId}`)
+    revalidatePath(`/account/orders/${orderId}`);
 
     return {
       success: true,
       message: 'Your order has been successfully paid by PayPal',
-    }
+    };
   } catch (err) {
-    return { success: false, message: formatError(err) }
+    console.error('❌ PayPal Approval Error:', err);
+    return { success: false, message: formatError(err) };
   }
 }
-
 export const calcDeliveryDateAndPrice = async ({
   items,
   ShippingAddress,

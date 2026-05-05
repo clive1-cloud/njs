@@ -126,6 +126,9 @@ export const formatDateTime = (dateString: Date) => {
   }
 }
 
-export function formatId(id: string) {
-  return `..${id.substring(id.length - 6)}`
+// lib/utils.ts
+export function formatId(id: string | any) {
+  // Add String(id) to convert MongoDB ObjectIds safely
+  const stringId = String(id); 
+  return `..${stringId.substring(stringId.length - 6)}`;
 }

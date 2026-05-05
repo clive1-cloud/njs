@@ -1,5 +1,4 @@
 import { auth } from '@/auth'
-
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -12,26 +11,27 @@ import {
 import { Signout } from '@/lib/actions/user.actions'
 import { cn } from '@/lib/utils'
 import { ChevronDownIcon } from 'lucide-react'
-
 import Link from 'next/link'
 
 export default async function UserButton() {
-  
   const session = await auth()
+
   return (
     <div className='flex gap-2 items-center'>
       <DropdownMenu>
-        <DropdownMenuTrigger className='header-button' asChild>
-          <span className='flex items-center'>
-            <span className='flex flex-col text-xs text-left'>
-              <span>
-                Hello {session?.user? session.user.name : 'sign in'}
-              </span>
-              <span className='font-bold'>Account & Orders</span>
+        {/* FIX: Removed asChild — it was causing Radix to clone a <span> into a
+            <button> slot, creating a server/client HTML mismatch (hydration error).
+            DropdownMenuTrigger renders its own <button> natively. */}
+        <DropdownMenuTrigger className='header-button flex items-center gap-1'>
+          <span className='flex flex-col text-xs text-left'>
+            <span>
+              Hello {session?.user ? session.user.name : 'sign in'}
             </span>
-            <ChevronDownIcon />
+            <span className='font-bold'>Account & Orders</span>
           </span>
+          <ChevronDownIcon className='h-4 w-4' />
         </DropdownMenuTrigger>
+
         {session ? (
           <DropdownMenuContent className='w-56' align='end' forceMount>
             <DropdownMenuLabel className='font-normal'>
@@ -51,7 +51,6 @@ export default async function UserButton() {
               <Link className='w-full' href='/account/orders'>
                 <DropdownMenuItem>Your orders</DropdownMenuItem>
               </Link>
-
               {session.user.role === 'Admin' && (
                 <Link className='w-full' href='/admin/overview'>
                   <DropdownMenuItem>Admin</DropdownMenuItem>
@@ -83,7 +82,7 @@ export default async function UserButton() {
             </DropdownMenuGroup>
             <DropdownMenuLabel>
               <div className='font-normal'>
-                New Customer
+                New Customer{' '}
                 <Link href='/sign-up'>Sign up</Link>
               </div>
             </DropdownMenuLabel>
