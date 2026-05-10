@@ -295,10 +295,10 @@ const products: IProductInput[] = [
     slug: toSlug('Jerzees Long-Sleeve Heavyweight Blend T-Shirt'),
     category: 'T-Shirts',
     images: [
-      '/images/T-shirts03.jpg',
-      '/images/T-Shirts04.jpg',
-      '/images/T-shirts05.jpg',
-      '/images/T-shirts06.jpg',
+      '/images/t-shirts03.jpg',
+      '/images/t-shirts04.jpg',
+      '/images/t-shirts05.jpg',
+      '/images/t-shirts06.jpg',
     ],
     tags: ['featured'],
     isPublished: true,
@@ -756,7 +756,7 @@ const products: IProductInput[] = [
     description:
       'Chronograph watch featuring silver- and blue-tone case, blue sunray dial, and silver-tone Roman numeral indices',
     sizes: [],
-    colors: ['Blue', 'Black', 'Sliver'],
+    colors: ['Blue', 'Black', 'Silver'],
 
     reviews: [],
   },
@@ -794,7 +794,7 @@ const products: IProductInput[] = [
     slug: toSlug('adidas Mens Grand Court 2.0 Training Shoes Training Shoes'),
     category: 'Shoes',
     brand: 'adidas',
-    images: ['/images/shoes.jpg', '/images/Shoes02.jpg'],
+    images: ['/images/shoes.jpg', '/images/shoes02.jpg'],
     tags: ['new-arrival'],
     isPublished: true,
     price: 81.99,
