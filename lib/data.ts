@@ -912,7 +912,7 @@ const products: IProductInput[] = [
     slug: toSlug("ASICS Men's GT-2000 13 Running Shoes"),
     category: 'Shoes',
     brand: 'ASICS',
-    images: ['/images/shoes09.jpg', '/images/shoes10.jpg'],
+    images: ['/images/shoes_09.jpg', '/images/shoes_10.jpg'],
     tags: ['new-arrival', 'featured'],
     isPublished: true,
     price: 179.95,
