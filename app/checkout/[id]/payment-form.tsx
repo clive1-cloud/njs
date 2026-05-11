@@ -21,8 +21,14 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import StripeForm from './stripe-form'
 
-// FIX 1: Moved PrintLoadingState outside the main component so it doesn't
-// get recreated on every render
+// --- GLOBAL INITIALIZATION ---
+// Initialize Stripe outside the component to prevent re-initializing on every render
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string
+)
+
+// --- HELPER COMPONENTS ---
+
 function PrintLoadingState() {
   const [{ isPending, isRejected }] = usePayPalScriptReducer()
   if (isPending) return <span>Loading PayPal...</span>
@@ -30,63 +36,31 @@ function PrintLoadingState() {
   return null
 }
 
-export default function OrderPaymentForm({
-  order,
-  paypalClientId,
-  clientSecret,
+// Moved outside to maintain a stable React identity (Fixes Stripe Context Error)
+const CheckoutSummary = ({ 
+  order, 
+  paypalClientId, 
+  clientSecret, 
+  handleCreatePayPalOrder, 
+  handleApprovePayPalOrder 
 }: {
-  order: IOrder
-  paypalClientId: string
-  isAdmin: boolean
-  clientSecret: string | null
-}) {
+  order: IOrder,
+  paypalClientId: string,
+  clientSecret: string | null,
+  handleCreatePayPalOrder: () => Promise<string>,
+  handleApprovePayPalOrder: (data: { orderID: string }) => Promise<void>
+}) => {
   const router = useRouter()
-  const { toast } = useToast()
-
   const {
-    shippingAddress,
-    items,
     itemsPrice,
     taxPrice,
     shippingPrice,
     totalPrice,
     paymentMethod,
-    expectedDeliveryDate,
     isPaid,
   } = order
 
-  if (isPaid) {
-    redirect(`/account/orders/${order._id}`)
-  }
-
-  const handleCreatePayPalOrder = async () => {
-    const res = await createPayPalOrder(order._id)
-    if (!res.success) {
-      toast({ description: res.message, variant: 'destructive' })
-      throw new Error(res.message)
-    }
-    return res.data as string
-  }
-
-  const handleApprovePayPalOrder = async (data: { orderID: string }) => {
-    const res = await approvePayPalOrder(order._id, data)
-    
-    toast({
-      description: res.message,
-      variant: res.success ? 'default' : 'destructive',
-    })
-
-    // --- ADD THIS BLOCK ---
-    if (res.success) {
-      router.push(`/account/orders/${order._id}`)
-    }
-    // ----------------------
-
-    
-  }
-  // FIX 2: PayPal rendered ONCE here at the top level, outside CheckoutSummary
-  // This prevents double-mounting (mobile + desktop) which caused the flicker
-const CheckoutSummary = () => (
+  return (
     <Card>
       <CardContent className='p-4'>
         <div>
@@ -95,7 +69,6 @@ const CheckoutSummary = () => (
             <div className='flex justify-between'>
               <span>Items:</span>
               <span>
-                {' '}
                 <ProductPrice price={itemsPrice} plain />
               </span>
             </div>
@@ -121,10 +94,9 @@ const CheckoutSummary = () => (
                 )}
               </span>
             </div>
-            <div className='flex justify-between  pt-1 font-bold text-lg'>
+            <div className='flex justify-between pt-1 font-bold text-lg'>
               <span> Order Total:</span>
               <span>
-                {' '}
                 <ProductPrice price={totalPrice} plain />
               </span>
             </div>
@@ -140,15 +112,14 @@ const CheckoutSummary = () => (
                 </PayPalScriptProvider>
               </div>
             )}
+
             {!isPaid && paymentMethod === 'Stripe' && clientSecret && (
               <Elements
-                options={{
-                  clientSecret,
-                }}
+                options={{ clientSecret }}
                 stripe={stripePromise}
               >
                 <StripeForm
-                  priceInCents={Math.round(order.totalPrice * 100)}
+                  priceInCents={Math.round(totalPrice * 100)}
                   orderId={order._id}
                 />
               </Elements>
@@ -167,46 +138,77 @@ const CheckoutSummary = () => (
       </CardContent>
     </Card>
   )
+}
 
-  const stripePromise = loadStripe(
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string
-  )
+// --- MAIN COMPONENT ---
 
+export default function OrderPaymentForm({
+  order,
+  paypalClientId,
+  clientSecret,
+}: {
+  order: IOrder
+  paypalClientId: string
+  isAdmin: boolean
+  clientSecret: string | null
+}) {
+  const router = useRouter()
+  const { toast } = useToast()
 
+  if (order.isPaid) {
+    redirect(`/account/orders/${order._id}`)
+  }
+
+  const handleCreatePayPalOrder = async () => {
+    const res = await createPayPalOrder(order._id)
+    if (!res.success) {
+      toast({ description: res.message, variant: 'destructive' })
+      throw new Error(res.message)
+    }
+    return res.data as string
+  }
+
+  const handleApprovePayPalOrder = async (data: { orderID: string }) => {
+    const res = await approvePayPalOrder(order._id, data)
+    toast({
+      description: res.message,
+      variant: res.success ? 'default' : 'destructive',
+    })
+    if (res.success) {
+      router.push(`/account/orders/${order._id}`)
+    }
+  }
 
   return (
     <main className='max-w-6xl mx-auto'>
       <div className='grid md:grid-cols-4 gap-6'>
         <div className='md:col-span-3'>
-          {/* Shipping Address */}
           <div className='grid md:grid-cols-3 my-3 pb-3'>
             <div className='text-lg font-bold'>Shipping Address</div>
             <div className='col-span-2'>
               <p>
-                {shippingAddress.fullName} <br />
-                {shippingAddress.street} <br />
-                {`${shippingAddress.city}, ${shippingAddress.province}, ${shippingAddress.postalCode}, ${shippingAddress.country}`}
+                {order.shippingAddress.fullName} <br />
+                {order.shippingAddress.street} <br />
+                {`${order.shippingAddress.city}, ${order.shippingAddress.province}, ${order.shippingAddress.postalCode}, ${order.shippingAddress.country}`}
               </p>
             </div>
           </div>
 
-          {/* Payment Method */}
           <div className='border-y'>
             <div className='grid md:grid-cols-3 my-3 pb-3'>
               <div className='text-lg font-bold'>Payment Method</div>
               <div className='col-span-2'>
-                <p>{paymentMethod}</p>
+                <p>{order.paymentMethod}</p>
               </div>
             </div>
           </div>
 
-          {/* Items and Shipping */}
           <div className='grid md:grid-cols-3 my-3 pb-3'>
             <div className='text-lg font-bold'>Items and shipping</div>
             <div className='col-span-2'>
-              <p>Delivery date: {formatDateTime(expectedDeliveryDate).dateOnly}</p>
+              <p>Delivery date: {formatDateTime(order.expectedDeliveryDate).dateOnly}</p>
               <ul>
-                {items.map((item) => (
+                {order.items.map((item) => (
                   <li key={item.slug}>
                     {item.name} x {item.quantity} = {item.price}
                   </li>
@@ -215,17 +217,27 @@ const CheckoutSummary = () => (
             </div>
           </div>
 
-          {/* FIX 5: Mobile — show summary + PayPal once here only */}
           <div className='block md:hidden'>
-            <CheckoutSummary />
+            <CheckoutSummary 
+              order={order}
+              paypalClientId={paypalClientId}
+              clientSecret={clientSecret}
+              handleCreatePayPalOrder={handleCreatePayPalOrder}
+              handleApprovePayPalOrder={handleApprovePayPalOrder}
+            />
           </div>
 
           <CheckoutFooter />
         </div>
 
-        {/* Desktop sidebar */}
         <div className='hidden md:block'>
-          <CheckoutSummary />
+          <CheckoutSummary 
+            order={order}
+            paypalClientId={paypalClientId}
+            clientSecret={clientSecret}
+            handleCreatePayPalOrder={handleCreatePayPalOrder}
+            handleApprovePayPalOrder={handleApprovePayPalOrder}
+          />
         </div>
       </div>
     </main>
