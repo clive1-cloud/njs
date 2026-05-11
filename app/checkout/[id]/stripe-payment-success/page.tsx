@@ -1,73 +1,61 @@
 'use client'
-import {
-  LinkAuthenticationElement,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from '@stripe/react-stripe-js'
-import { FormEvent, useState } from 'react'
 
+import { useEffect, useState } from 'react'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, useStripe } from '@stripe/react-stripe-js'
 import { Button } from '@/components/ui/button'
-import ProductPrice from '@/components/shared/product/product-price'
-import { SERVER_URL } from '@/lib/constant'
+import Link from 'next/link'
 
-export default function StripeForm({
-  priceInCents,
-  orderId,
-}: {
-  priceInCents: number
-  orderId: string
-}) {
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+
+function SuccessStatus({ orderId }: { orderId: string }) {
   const stripe = useStripe()
-  const elements = useElements()
-  const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string>()
-  const [email, setEmail] = useState<string>()
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  useEffect(() => {
+    if (!stripe) return
 
-    if (stripe == null || elements == null || email == null) return
+    // Get the client secret from the URL that Stripe redirected to
+    const clientSecret = new URLSearchParams(window.location.search).get(
+      'payment_intent_client_secret'
+    )
 
-    setIsLoading(true)
-    stripe
-      .confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${SERVER_URL}/checkout/${orderId}/stripe-payment-success`,
-        },
-      })
-      .then(({ error }) => {
-        if (error.type === 'card_error' || error.type === 'validation_error') {
-          setErrorMessage(error.message)
-        } else {
-          setErrorMessage('An unknown error occurred')
-        }
-      })
-      .finally(() => setIsLoading(false))
-  }
+    if (!clientSecret) {
+      setStatus('error')
+      return
+    }
+
+    stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
+      if (paymentIntent?.status === 'succeeded') {
+        setStatus('success')
+      } else {
+        setStatus('error')
+      }
+    })
+  }, [stripe])
+
+  if (status === 'loading') return <p>Verifying payment...</p>
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-4'>
-      <div className='text-xl'>Stripe Checkout</div>
-      {errorMessage && <div className='text-destructive'>{errorMessage}</div>}
-      <PaymentElement />
-      <div>
-        <LinkAuthenticationElement onChange={(e) => setEmail(e.value.email)} />
-      </div>
-      <Button
-        className='w-full'
-        size='lg'
-        disabled={stripe == null || elements == null || isLoading}
-      >
-        {isLoading ? (
-          'Purchasing...'
-        ) : (
-          <div>
-            Purchase - <ProductPrice price={priceInCents / 100} plain />
-          </div>
-        )}
+    <div className="space-y-4 text-center">
+      <h1 className="text-4xl font-bold text-green-600">
+        {status === 'success' ? 'Payment Successful!' : 'Something went wrong'}
+      </h1>
+      <p className="text-muted-foreground">Order ID: {orderId}</p>
+      <Button asChild className="w-full">
+        <Link href={`/account/orders/${orderId}`}>View Order Details</Link>
       </Button>
-    </form>
+    </div>
+  )
+}
+
+export default function StripePaymentSuccessPage({ params }: { params: { id: string } }) {
+  return (
+    <main className="max-w-2xl mx-auto py-20 px-4">
+      {/* This Wrapper fixes the "Elements Context" error */}
+      <Elements stripe={stripePromise}>
+        <SuccessStatus orderId={params.id} />
+      </Elements>
+    </main>
   )
 }
