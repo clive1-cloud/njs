@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, use } from 'react' // Added 'use'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, useStripe } from '@stripe/react-stripe-js'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,6 @@ function SuccessStatus({ orderId }: { orderId: string }) {
   useEffect(() => {
     if (!stripe) return
 
-    // Get the client secret from the URL that Stripe redirected to
     const clientSecret = new URLSearchParams(window.location.search).get(
       'payment_intent_client_secret'
     )
@@ -34,12 +33,12 @@ function SuccessStatus({ orderId }: { orderId: string }) {
     })
   }, [stripe])
 
-  if (status === 'loading') return <p>Verifying payment...</p>
+  if (status === 'loading') return <p className="text-center">Verifying payment...</p>
 
   return (
     <div className="space-y-4 text-center">
-      <h1 className="text-4xl font-bold text-green-600">
-        {status === 'success' ? 'Payment Successful!' : 'Something went wrong'}
+      <h1 className={`text-4xl font-bold ${status === 'success' ? 'text-green-600' : 'text-destructive'}`}>
+        {status === 'success' ? 'Payment Successful!' : 'Payment Failed'}
       </h1>
       <p className="text-muted-foreground">Order ID: {orderId}</p>
       <Button asChild className="w-full">
@@ -49,12 +48,19 @@ function SuccessStatus({ orderId }: { orderId: string }) {
   )
 }
 
-export default function StripePaymentSuccessPage({ params }: { params: { id: string } }) {
+// FIX: params must be unwrapped using React.use()
+export default function StripePaymentSuccessPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  const unwrappedParams = use(params)
+  const orderId = unwrappedParams.id
+
   return (
     <main className="max-w-2xl mx-auto py-20 px-4">
-      {/* This Wrapper fixes the "Elements Context" error */}
       <Elements stripe={stripePromise}>
-        <SuccessStatus orderId={params.id} />
+        <SuccessStatus orderId={orderId} />
       </Elements>
     </main>
   )
