@@ -2,7 +2,6 @@
 
 import { SearchIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-
 import {
   Select,
   SelectContent,
@@ -11,9 +10,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { APP_NAME } from '@/lib/constant'
-const categories = ['men', 'women', 'kids', 'accessories']
 
-export default function Search() {
+// 1. Define the TypeScript interface to accept the categories passed from the Header
+interface SearchProps {
+  categories: string[]
+}
+
+// 2. REMOVED 'async' -> This is now a clean, synchronous client component
+export default function Search({ categories }: SearchProps) {
   return (
     <form action='/search' method='get' className='flex items-stretch h-10'>
       <Select name='category'>
@@ -22,7 +26,9 @@ export default function Search() {
         </SelectTrigger>
         <SelectContent position='popper'>
           <SelectItem value='all'>All</SelectItem>
-          {categories.map((category) => (
+          
+          {/* 3. Safely map over the categories passed from the server */}
+          {categories?.map((category) => (
             <SelectItem key={category} value={category}>
               {category.charAt(0).toUpperCase() + category.slice(1)}
             </SelectItem>
@@ -33,14 +39,14 @@ export default function Search() {
         name='q'
         type='text'
         placeholder={`Search ${APP_NAME}...`}
-        className='flex-grow rounded-none bg-white border-none focus-visible:ring-0 focus-visible:ring-offset-0'
+        className='flex-grow rounded-none bg-white text-black border-none focus-visible:ring-0 focus-visible:ring-offset-0'
       />
       <button
-        type='submit'
-        className='flex items-center justify-center px-4 bg-yellow-400 text-black rounded-r-md hover:bg-gray-200 transition-colors duration-200'
-      >
-        <SearchIcon size={20} />
-      </button>
+  type='submit'
+  className='flex items-center justify-center px-4 bg-primary text-primary-foreground rounded-r-md hover:bg-primary/80 transition-colors duration-200'
+>
+  <SearchIcon size={20} />
+    </button>
     </form>
   )
 }
